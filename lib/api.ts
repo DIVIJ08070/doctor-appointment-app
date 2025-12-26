@@ -108,8 +108,8 @@ export interface Patient {
   gender: "MALE" | "FEMALE" | "OTHER";
   phone: string;
   address?: string;
-  height?: number | null;
-  weight?: number | null;
+  height?: number ;
+  weight?: number ;
   dob?: string;
 }
 

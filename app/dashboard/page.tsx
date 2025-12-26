@@ -1,5 +1,5 @@
 // app/dashboard/page.tsx
-// FINAL VERSION - Real appointment stats + Getting Started always visible
+// FINAL VERSION - Improved Mobile View (More Beautiful on Small Screens)
 
 "use client";
 
@@ -45,13 +45,11 @@ export default function DashboardPage() {
     setLoading(true);
 
     try {
-      // 1. Fetch patients
       const patientsResult = await api.getPatients();
       if (patientsResult.data) {
         setPatients(patientsResult.data);
       }
 
-      // 2. Fetch all appointments to count stats
       const allAppointments: any[] = [];
       let page = 0;
       const size = 20;
@@ -108,18 +106,20 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
-        {/* Welcome Section */}
-        <div className="bg-gradient-to-r from-teal-500 to-cyan-500 rounded-2xl p-8 text-white shadow-lg">
-          <div className="flex items-center gap-3 mb-3">
-            <Activity className="w-10 h-10" />
-            <h1 className="text-3xl font-bold text-balance">Welcome back, {user.name || "User"}!</h1>
+      <div className="space-y-8 pb-8">
+        {/* Welcome Section - Better on Mobile */}
+        <div className="bg-gradient-to-r from-teal-500 to-cyan-500 rounded-2xl p-6 sm:p-8 text-white shadow-lg">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <Activity className="w-10 h-10 flex-shrink-0" />
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold">Welcome back, {user.name || "User"}!</h1>
+              <p className="text-teal-50 text-base sm:text-lg mt-1">Manage your health appointments with ease</p>
+            </div>
           </div>
-          <p className="text-teal-50 text-lg">Manage your health appointments with ease</p>
         </div>
 
-        {/* Stats Grid - Real numbers */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Stats Grid - Stacked on Mobile, Horizontal on Larger */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="border-teal-100 bg-gradient-to-br from-white to-teal-50/30 hover:shadow-lg transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -169,90 +169,84 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Quick Actions - Full Width on Mobile */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <Card className="border-teal-100 hover:shadow-lg transition-all duration-200 group cursor-pointer">
-            <Link href="/dashboard/book-appointment">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-lg mb-1">Book Appointment</CardTitle>
-                    <CardDescription>Schedule a new consultation</CardDescription>
-                  </div>
-                  <ArrowRight className="w-5 h-5 text-teal-600 group-hover:translate-x-1 transition-transform" />
+            <Link href="/dashboard/book-appointment" className="block p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg mb-1">Book Appointment</CardTitle>
+                  <CardDescription>Schedule a new consultation</CardDescription>
                 </div>
-              </CardHeader>
+                <ArrowRight className="w-6 h-6 text-teal-600 group-hover:translate-x-2 transition-transform" />
+              </div>
             </Link>
           </Card>
 
           <Card className="border-teal-100 hover:shadow-lg transition-all duration-200 group cursor-pointer">
-            <Link href="/dashboard/patients">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-lg mb-1">Manage Patients</CardTitle>
-                    <CardDescription>View and add patients</CardDescription>
-                  </div>
-                  <ArrowRight className="w-5 h-5 text-teal-600 group-hover:translate-x-1 transition-transform" />
+            <Link href="/dashboard/patients" className="block p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg mb-1">Manage Patients</CardTitle>
+                  <CardDescription>View and add patients</CardDescription>
                 </div>
-              </CardHeader>
+                <ArrowRight className="w-6 h-6 text-teal-600 group-hover:translate-x-2 transition-transform" />
+              </div>
             </Link>
           </Card>
 
           <Card className="border-teal-100 hover:shadow-lg transition-all duration-200 group cursor-pointer">
-            <Link href="/dashboard/doctors">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-lg mb-1">Browse Doctors</CardTitle>
-                    <CardDescription>Find the right specialist</CardDescription>
-                  </div>
-                  <ArrowRight className="w-5 h-5 text-teal-600 group-hover:translate-x-1 transition-transform" />
+            <Link href="/dashboard/doctors" className="block p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg mb-1">Browse Doctors</CardTitle>
+                  <CardDescription>Find the right specialist</CardDescription>
                 </div>
-              </CardHeader>
+                <ArrowRight className="w-6 h-6 text-teal-600 group-hover:translate-x-2 transition-transform" />
+              </div>
             </Link>
           </Card>
         </div>
 
-        {/* Getting Started - Always Visible */}
+        {/* Getting Started - Better Spacing on Mobile */}
         <Card className="border-teal-100 bg-gradient-to-br from-white to-teal-50/30">
-          <CardHeader>
-            <CardTitle>Getting Started</CardTitle>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl">Getting Started</CardTitle>
             <CardDescription>Follow these steps to book your first appointment</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
             <div className="flex items-start gap-4">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center text-white font-bold flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
                 1
               </div>
               <div>
-                <h4 className="font-semibold mb-1">Add a Patient</h4>
-                <p className="text-sm text-muted-foreground">
+                <h4 className="font-semibold text-lg mb-1">Add a Patient</h4>
+                <p className="text-muted-foreground">
                   Start by adding yourself or a family member as a patient
                 </p>
               </div>
             </div>
             <div className="flex items-start gap-4">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center text-white font-bold flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
                 2
               </div>
               <div>
-                <h4 className="font-semibold mb-1">Browse Doctors</h4>
-                <p className="text-sm text-muted-foreground">
+                <h4 className="font-semibold text-lg mb-1">Browse Doctors</h4>
+                <p className="text-muted-foreground">
                   Find a doctor that matches your needs by specialization
                 </p>
               </div>
             </div>
             <div className="flex items-start gap-4">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center text-white font-bold flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
                 3
               </div>
               <div>
-                <h4 className="font-semibold mb-1">Book Appointment</h4>
-                <p className="text-sm text-muted-foreground">Select an available time slot and book your visit</p>
+                <h4 className="font-semibold text-lg mb-1">Book Appointment</h4>
+                <p className="text-muted-foreground">Select an available time slot and book your visit</p>
               </div>
             </div>
-            <Button className="w-full bg-gradient-to-r from-teal-500 to-cyan-500 mt-4" asChild>
+            <Button className="w-full bg-gradient-to-r from-teal-500 to-cyan-500 text-lg py-6" asChild>
               <Link href="/dashboard/patients">Get Started</Link>
             </Button>
           </CardContent>
