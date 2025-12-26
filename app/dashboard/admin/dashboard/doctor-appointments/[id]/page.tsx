@@ -1,4 +1,6 @@
 // app/appointment/admin/doctor-appointments/[id]/page.tsx
+// FULL FIXED VERSION - Status update with PUT + all TS errors fixed
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -111,7 +113,7 @@ export default function DoctorAppointments() {
   const [totalAppointments, setTotalAppointments] = useState(0);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
-  // CORRECT ADMIN CHECK - using session.user.roles
+  // Admin check
   useEffect(() => {
     if (status === "authenticated") {
       const userRoles = (session?.user as SessionUser)?.roles || [];
@@ -126,41 +128,35 @@ export default function DoctorAppointments() {
   }, [status, session, router]);
 
   const fetchDoctorInfo = async () => {
-    if (!doctorId || !session?.jwt) return;
+  if (!doctorId || !session?.jwt) return;
 
-    try {
-      const url = `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'https://medify-service-production.up.railway.app'}/v1/doctors/${doctorId}`;
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${session.jwt}` },
+  try {
+    const url = `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'https://medify-service-production.up.railway.app'}/v1/doctors/${doctorId}`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${session.jwt}` },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      setDoctorInfo(data);
+    } else {
+      console.warn("Doctor info not available:", res.status);
+      // Set fallback
+      setDoctorInfo({
+        id: doctorId,
+        name: "Doctor",
+        specialization: "General",
       });
-
-      if (res.ok) {
-        const data = await res.json();
-        setDoctorInfo(data);
-      }
-    } catch (error) {
-      console.error("Error fetching doctor info:", error);
     }
-  };
-
-  const fetchAllAppointments = async () => {
-    if (!doctorId || !session?.jwt) return;
-
-    try {
-      // Fetch first page to get total count
-      const firstPageUrl = `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'https://medify-service-production.up.railway.app'}/v1/appointments/doctor/${doctorId}?page=0&size=1`;
-      const res = await fetch(firstPageUrl, {
-        headers: { Authorization: `Bearer ${session.jwt}` },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setTotalAppointments(data.totalElements || 0);
-      }
-    } catch (error) {
-      console.error("Error fetching total appointments:", error);
-    }
-  };
+  } catch (error) {
+    console.error("Error fetching doctor info:", error);
+    setDoctorInfo({
+      id: doctorId,
+      name: "Doctor",
+      specialization: "General",
+    });
+  }
+};
 
   const fetchAppointments = async (pageNum = 0) => {
     if (!doctorId || !session?.jwt) return;
@@ -180,7 +176,6 @@ export default function DoctorAppointments() {
         setTotalAppointments(data.totalElements || 0);
         setPage(data.pageable?.pageNumber || 0);
       } else {
-        console.warn(`API returned ${res.status}`);
         setAppointments([]);
         if (res.status === 403) {
           router.push("/");
@@ -247,72 +242,66 @@ export default function DoctorAppointments() {
     }
   };
 
+  // FIXED: PUT request to update status
   const updateAppointmentStatus = async (appointmentId: string, newStatus: string) => {
-    if (!appointmentId || !session?.jwt) {
+  if (!appointmentId || !session?.jwt) {
+    toast({
+      title: "Error",
+      description: "Missing required information",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  setUpdatingStatus(appointmentId);
+
+    const validStatuses = ["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED"];
+  if (!validStatuses.includes(newStatus)) {
+    toast({
+      title: "Invalid Status",
+      description: "Please select a valid status",
+      variant: "destructive",
+    });
+    setUpdatingStatus(null);
+    return;
+  }
+
+  try {
+    // EXACTLY LIKE POSTMAN
+    const url = `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'https://medify-service-production.up.railway.app'}/v1/appointments/status/${appointmentId}?status=${newStatus}`;
+
+    const res = await fetch(url, {
+      method: "PUT",  // PUT as in Postman
+      headers: {
+        Authorization: `Bearer ${session.jwt}`,
+      },
+      // NO BODY — status is in query param
+    });
+
+    if (res.ok) {
       toast({
-        title: "Error",
-        description: "Missing required information",
-        variant: "destructive",
+        title: "Success",
+        description: `Appointment status updated to ${newStatus}`,
       });
-      return;
+      await fetchAppointments(page);
+    } else {
+      const errorText = await res.text();
+      throw new Error(errorText || "Failed to update status");
     }
+  } catch (error: any) {
+    console.error("Status update error:", error);
+    toast({
+      title: "Update Failed",
+      description: error.message || "Server error. Try again.",
+      variant: "destructive",
+    });
+  } finally {
+    setUpdatingStatus(null);
+  }
+};
 
-    setUpdatingStatus(appointmentId);
-    
-    try {
-      // Get patient ID from the appointment
-      const appointment = appointments.find(a => a.id === appointmentId);
-      if (!appointment?.patient?.id) {
-        throw new Error("Patient ID not found");
-      }
-
-      // FIX: Use the correct API endpoint and method
-      const url = `${process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'https://medify-service-production.up.railway.app'}/v1/appointments/update-status?id=${appointmentId}&status=${newStatus}`;
-      
-      console.log("Updating status URL:", url);
-      console.log("Patient ID:", appointment.patient.id);
-
-      // Use GET method instead of PATCH to avoid CORS preflight
-      const res = await fetch(url, {
-        method: "GET", // Changed from PATCH to GET
-        headers: { 
-          Authorization: `Bearer ${session.jwt}`,
-          "patient-id": appointment.patient.id, // Changed from patient_id to patient-id
-          "Content-Type": "application/json"
-        },
-      });
-
-      console.log("Update status response:", res.status);
-
-      if (res.ok) {
-        const result = await res.json();
-        console.log("Update successful:", result);
-        
-        toast({
-          title: "Success",
-          description: `Appointment status updated to ${newStatus}`,
-        });
-        
-        // Refresh appointments list
-        await fetchAppointments(page);
-      } else {
-        const errorText = await res.text();
-        console.error("Update failed:", errorText);
-        throw new Error(`Failed to update status (${res.status})`);
-      }
-    } catch (error: any) {
-      console.error("Update status error:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update appointment status",
-        variant: "destructive",
-      });
-    } finally {
-      setUpdatingStatus(null);
-    }
-  };
-
-  const StatusChangeDialog = ({ appointmentId, currentStatus }: { appointmentId: string, currentStatus: string }) => {
+  // Status Change Dialog Component
+  const StatusChangeDialog = ({ appointmentId, currentStatus }: { appointmentId: string; currentStatus: string }) => {
     const [open, setOpen] = useState(false);
     const [selectedStatus, setSelectedStatus] = useState("");
 
@@ -386,9 +375,11 @@ export default function DoctorAppointments() {
     );
   };
 
-  if (status === "loading" || loading) return <LoadingSpinner />;
+  if (status === "loading" || loading) {
+    return <LoadingSpinner />;
+  }
 
-  // Final admin fallback
+  // Final admin check
   const userRoles = (session?.user as SessionUser)?.roles || [];
   const isAdmin = Array.isArray(userRoles)
     ? userRoles.some((r: string) => r.includes("ADMIN"))
@@ -399,7 +390,7 @@ export default function DoctorAppointments() {
     return null;
   }
 
-  // Calculate statistics
+  // Statistics
   const confirmedCount = appointments.filter(a => a.status === 'CONFIRMED').length;
   const pendingCount = appointments.filter(a => a.status === 'PENDING').length;
   const cancelledCount = appointments.filter(a => a.status === 'CANCELLED').length;
@@ -409,7 +400,7 @@ export default function DoctorAppointments() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-teal-50/50 via-white to-cyan-50/50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header with Doctor Info */}
+        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 py-6">
           <div>
             <h1 className="text-4xl font-black bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
@@ -454,46 +445,36 @@ export default function DoctorAppointments() {
           </div>
         </div>
 
-        {/* Summary Statistics */}
+        {/* Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <Card className="border-teal-200 bg-white">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-teal-700">{totalAppointments}</div>
-                <div className="text-sm text-muted-foreground">Total Appointments</div>
-              </div>
+            <CardContent className="pt-6 text-center">
+              <div className="text-3xl font-bold text-teal-700">{totalAppointments}</div>
+              <div className="text-sm text-muted-foreground">Total Appointments</div>
             </CardContent>
           </Card>
           <Card className="border-emerald-200 bg-white">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-emerald-700">{confirmedCount}</div>
-                <div className="text-sm text-muted-foreground">Confirmed</div>
-              </div>
+            <CardContent className="pt-6 text-center">
+              <div className="text-3xl font-bold text-emerald-700">{confirmedCount}</div>
+              <div className="text-sm text-muted-foreground">Confirmed</div>
             </CardContent>
           </Card>
           <Card className="border-amber-200 bg-white">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-amber-700">{pendingCount}</div>
-                <div className="text-sm text-muted-foreground">Pending</div>
-              </div>
+            <CardContent className="pt-6 text-center">
+              <div className="text-3xl font-bold text-amber-700">{pendingCount}</div>
+              <div className="text-sm text-muted-foreground">Pending</div>
             </CardContent>
           </Card>
           <Card className="border-blue-200 bg-white">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-blue-700">{completedCount}</div>
-                <div className="text-sm text-muted-foreground">Completed</div>
-              </div>
+            <CardContent className="pt-6 text-center">
+              <div className="text-3xl font-bold text-blue-700">{completedCount}</div>
+              <div className="text-sm text-muted-foreground">Completed</div>
             </CardContent>
           </Card>
           <Card className="border-cyan-200 bg-white">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-cyan-700">₹{totalRevenue}</div>
-                <div className="text-sm text-muted-foreground">Total Revenue</div>
-              </div>
+            <CardContent className="pt-6 text-center">
+              <div className="text-2xl font-bold text-cyan-700">₹{totalRevenue}</div>
+              <div className="text-sm text-muted-foreground">Total Revenue</div>
             </CardContent>
           </Card>
         </div>
@@ -512,7 +493,6 @@ export default function DoctorAppointments() {
           </Card>
         ) : (
           <>
-            {/* Table View */}
             <Card className="border-teal-100 shadow-lg">
               <CardHeader>
                 <div className="flex justify-between items-center">
@@ -608,10 +588,7 @@ export default function DoctorAppointments() {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
-                              <StatusChangeDialog 
-                                appointmentId={appt.id} 
-                                currentStatus={appt.status} 
-                              />
+                              <StatusChangeDialog appointmentId={appt.id} currentStatus={appt.status} />
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" className="h-8 w-8 p-0" disabled={updatingStatus === appt.id}>
