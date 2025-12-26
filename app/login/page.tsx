@@ -1,7 +1,7 @@
+// app/login/page.tsx
+
 "use client";
 
-
-export const dynamic = "force-dynamic";
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession, signIn } from "next-auth/react";
@@ -9,10 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Activity } from "lucide-react";
 
-export default function LoginContent() {
+// ← THIS MUST BE AFTER "use client" and imports
+export const dynamic = "force-dynamic";
+
+export default function LoginPage() {
   const { status } = useSession();
   const router = useRouter();
-  const searchParams = useSearchParams(); // safe now
+  const searchParams = useSearchParams();
   const error = searchParams.get("error");
 
   useEffect(() => {
