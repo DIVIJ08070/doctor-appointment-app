@@ -1,4 +1,4 @@
-// app/payu/failure/route.js
+// app/payu/success/route.js
 
 import { NextResponse } from 'next/server';
 
@@ -30,26 +30,27 @@ export async function POST(req) {
 
     const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
 
-    const backendUrl = `${BACKEND_BASE}/v1/payments/failure/app`;
+    const backendUrl = `${BACKEND_BASE}/v1/payments/success/app`;
 
     try {
-      await fetch(backendUrl, {
+      const backendRes = await fetch(backendUrl, {
         method: 'POST',
         headers,
         body: body.toString(),
       });
+      console.log("Backend success response:", backendRes.status);
     } catch (fetchErr) {
-      console.error('[payu-failure] backend call failed', fetchErr);
+      console.error('[payu-success] backend call failed', fetchErr);
     }
 
-    // CORRECT REDIRECT — TO FAILURE PAGE
+    // CORRECT REDIRECT — TO SUCCESS PAGE
     const origin = new URL(req.url).origin;
     const qs = new URLSearchParams(params).toString();
-    const redirectUrl = `${origin}/payment/failure${qs ? `?${qs}` : ''}`;
+    const redirectUrl = `${origin}/payment/success${qs ? `?${qs}` : ''}`;
 
     return NextResponse.redirect(redirectUrl, 303);
   } catch (err) {
-    console.error('PayU failure handler error', err);
+    console.error('PayU success handler error', err);
     return new NextResponse('Internal Error', { status: 500 });
   }
 }

@@ -81,56 +81,13 @@ const postFormToUrl = (actionUrl: string, params: Record<string, any>) => {
 
 // Generate PayU hash - CORRECTED VERSION based on PayU error message
 const generatePayUHash = async (params: Record<string, string>, salt: string): Promise<string> => {
-  // According to PayU error, the correct formula is:
-  // sha512(key|txnid|amount|productinfo|firstname|email|udf1|udf2|udf3|udf4|udf5||||||SALT)
-  
-  const hashString = [
-    params.key,
-    params.txnid,
-    params.amount,
-    params.productinfo,
-    params.firstname,
-    params.email,
-    params.udf1 || '',
-    params.udf2 || '',
-    params.udf3 || '',
-    params.udf4 || '',
-    params.udf5 || '',
-    '', // udf6
-    '', // udf7
-    '', // udf8
-    '', // udf9
-    '', // udf10
-    salt
-  ].join('|');
-  
-  console.log('Hash string for SHA512:', hashString);
-  
-  try {
-    // Using Web Crypto API for SHA512
-    const encoder = new TextEncoder();
-    const data = encoder.encode(hashString);
-    const hashBuffer = await crypto.subtle.digest('SHA-512', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    
-    console.log('Generated SHA512 hash:', hashHex);
-    return hashHex;
-  } catch (error) {
-    console.error('Error generating hash with Web Crypto:', error);
-    
-    // Fallback to a server-side call if client-side hash fails
-    // For now, use a simple hash (this won't work with PayU)
-    let hash = 0;
-    for (let i = 0; i < hashString.length; i++) {
-      const char = hashString.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    const fallbackHash = Math.abs(hash).toString(16).padStart(128, '0');
-    console.log('Fallback hash (not for production):', fallbackHash);
-    return fallbackHash;
-  }
+  const hashString = `${params.key}|${params.txnid}|${params.amount}|${params.productinfo}|${params.firstname}|${params.email}|${params.udf1 || ''}|${params.udf2 || ''}|${params.udf3 || ''}|${params.udf4 || ''}|${params.udf5 || ''}||||||${salt}`;
+
+  const encoder = new TextEncoder();
+  const data = encoder.encode(hashString);
+  const hashBuffer = await crypto.subtle.digest("SHA-512", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 };
 
 export default function BookAppointmentPage() {
@@ -175,8 +132,8 @@ export default function BookAppointmentPage() {
     merchantSalt: '4R38IvwiV57FwVpsgOvTXBdLE4tHUXFW', // Test merchant salt
     baseUrl: 'https://test.payu.in',
     paymentEndpoint: '/_payment',
-    successUrl: `${typeof window !== 'undefined' ? window.location.origin : ''}/payment/success`,
-    failureUrl: `${typeof window !== 'undefined' ? window.location.origin : ''}/payment/failure`
+    successUrl: `${typeof window !== 'undefined' ? window.location.origin : ''}/payu/success`,
+    failureUrl: `${typeof window !== 'undefined' ? window.location.origin : ''}/payu/failure`
   };
 
   // Load patients and doctors
@@ -480,74 +437,50 @@ export default function BookAppointmentPage() {
 
   // Initiate payment with PayU - This will redirect to PayU payment page
   const handleInitiatePayment = async () => {
-    if (!justBookedAppointment || !justBookedAppointment.id) {
-      setPaymentError("Appointment ID unavailable. Please contact support.");
-      return;
-    }
-    
-    setPaymentError(null);
-    setPaymentLoading(true);
+  if (!justBookedAppointment?.id) {
+    setPaymentError("Appointment ID missing");
+    return;
+  }
 
-    try {
-      // Generate transaction ID
-      const txnid = `TXN${Date.now()}${Math.floor(Math.random() * 1000)}`;
-      
-      // Calculate appointment price based on doctor's experience
-      const doctorExperience = selectedDoctor?.experience || 0;
-      let amount = "500.00"; // Default price
-      if (doctorExperience >= 10) {
-        amount = "1500.00";
-      } else if (doctorExperience >= 5) {
-        amount = "1000.00";
-      } else if (doctorExperience >= 2) {
-        amount = "750.00";
-      }
+  setPaymentError(null);
+  setPaymentLoading(true);
 
-      // Prepare PayU payload - CORRECTED according to PayU error message
-      const payuPayload = {
-        key: PAYU_CONFIG.merchantKey,
-        txnid: txnid,
-        amount: amount,
-        productinfo: `Appointment with Dr. ${selectedDoctor?.name || ''}`,
-        firstname: selectedPatient?.name.split(' ')[0] || 'Patient',
-        email: user?.email || 'patient@example.com',
-        phone: selectedPatient?.phone || '9999999999',
-        surl: PAYU_CONFIG.successUrl,
-        furl: PAYU_CONFIG.failureUrl,
-        udf1: justBookedAppointment.id.toString(),
-        udf2: selectedPatient?.id || '',
-        udf3: selectedDoctor?.id.toString() || '',
-        udf4: 'appointment_booking',
-        udf5: reason.substring(0, 100) || '',
-        // udf6 to udf10 are empty by default
-        hash: '', // Will be generated below
-        service_provider: 'payu_paisa'
-      };
+  try {
+    const txnid = `MEDIFY${Date.now()}${Math.floor(Math.random() * 10000)}`;
 
-      console.log('PayU Payload:', payuPayload);
+    const doctorExperience = selectedDoctor?.experience || 0;
+    let amount = "500.00";
+    if (doctorExperience >= 10) amount = "1500.00";
+    else if (doctorExperience >= 5) amount = "1000.00";
+    else if (doctorExperience >= 2) amount = "750.00";
 
-      // Generate hash with correct format
-      const hash = await generatePayUHash(payuPayload, PAYU_CONFIG.merchantSalt);
-      payuPayload.hash = hash;
+    const payuPayload = {
+      key: "gtKFFx",
+      txnid: txnid,
+      amount: amount,
+      productinfo: `Appointment with Dr. ${selectedDoctor?.name || 'Doctor'}`,
+      firstname: selectedPatient?.name?.split(' ')[0] || 'Patient',
+      email: user?.email || 'patient@example.com',
+      phone: selectedPatient?.phone || '9999999999',
+      udf1: justBookedAppointment.id.toString(),
+      udf2: '',
+      udf3: '',
+      udf4: '',
+      udf5: '',
+      surl: `${window.location.origin}/payu/success`,
+      furl: `${window.location.origin}/payu/failure`,
+      hash: '',
+    };
 
-      console.log('Generated hash:', hash);
+    payuPayload.hash = await generatePayUHash(payuPayload, "4R38IvwiV57FwVpsgOvTXBdLE4tHUXFW");
 
-      // Submit to PayU
-      const payuUrl = `${PAYU_CONFIG.baseUrl}${PAYU_CONFIG.paymentEndpoint}`;
-      console.log('Redirecting to PayU:', payuUrl);
-      
-      postFormToUrl(payuUrl, payuPayload);
-      
-      // User will be redirected to PayU payment page
-      // After payment, PayU will redirect to /payu/success or /payu/failure
-      // Your route.js files will handle the backend processing
-      
-    } catch (err: any) {
-      console.error('Payment initiation error', err);
-      setPaymentError('Error initiating payment. Please try again or choose "Pay Later".');
-      setPaymentLoading(false);
-    }
-  };
+    postFormToUrl("https://test.payu.in/_payment", payuPayload);
+  } catch (err) {
+    console.error("Payment error:", err);
+    setPaymentError("Failed to start payment. Try again.");
+    setPaymentLoading(false);
+  }
+};
 
   // Pay later - Mark appointment as confirmed without payment
   const handlePayLater = async () => {

@@ -34,7 +34,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
-, "app/payu/succes/route.js", "app/payu/failure/route.js"  ],
+, "app/payu/success/route.js", "app/payu/failure/route.js"  ],
   "exclude": [
     "node_modules"
   ]
