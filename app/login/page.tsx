@@ -1,4 +1,3 @@
-// app/login/page.tsx
 "use client";
 
 import { useEffect } from "react";
@@ -8,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Activity } from "lucide-react";
 
-export default function LoginPage() {
+export default function LoginContent() {
   const { status } = useSession();
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams(); // safe now
   const error = searchParams.get("error");
 
   useEffect(() => {
@@ -35,9 +34,7 @@ export default function LoginPage() {
           <div className="mx-auto w-16 h-16 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-2xl flex items-center justify-center shadow-lg">
             <Activity className="w-8 h-8 text-white" />
           </div>
-          <CardTitle className="text-3xl font-bold">
-            Welcome to Medify
-          </CardTitle>
+          <CardTitle className="text-3xl font-bold">Welcome to Medify</CardTitle>
           <CardDescription className="text-base">
             Sign in with your Google account to manage your appointments
           </CardDescription>
