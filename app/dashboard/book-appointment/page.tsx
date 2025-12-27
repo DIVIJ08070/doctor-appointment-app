@@ -483,51 +483,21 @@ export default function BookAppointmentPage() {
 };
 
   // Pay later - Mark appointment as confirmed without payment
-  const handlePayLater = async () => {
-    if (!justBookedAppointment || !justBookedAppointment.id || !session?.jwt) {
-      toast({
-        title: "Error",
-        description: "Appointment information missing.",
-        variant: "destructive",
-      });
-      return;
-    }
+  // Pay later - Simply redirect to appointments without API call
+const handlePayLater = async () => {
+  setBookingSuccess(true);
+  setShowTermsModal(false);
+  
+  toast({
+    title: "Appointment Booked! ✅",
+    description: "Your appointment has been scheduled. Please pay at the clinic during your visit.",
+  });
 
-    try {
-      // Update appointment status to CONFIRMED without payment
-      const updateRes = await fetch(
-        `${BACKEND_BASE_URL}/v1/appointments/update-status?id=${justBookedAppointment.id}&status=CONFIRMED`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${session.jwt}`,
-          },
-        }
-      );
-
-      if (updateRes.ok) {
-        setBookingSuccess(true);
-        setShowTermsModal(false);
-        toast({
-          title: "Appointment Confirmed!",
-          description: "Your appointment has been booked. Please pay at the clinic.",
-        });
-
-        setTimeout(() => {
-          router.push("/dashboard/appointments");
-        }, 2000);
-      } else {
-        throw new Error("Failed to confirm appointment");
-      }
-    } catch (error) {
-      console.error("Pay later error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to confirm appointment. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
+  // Redirect to appointments section after a short delay
+  setTimeout(() => {
+    router.push("/dashboard/appointments");
+  }, 1500);
+};
 
   const formatTime = (time: string) => time?.slice(0, 5) || "—";
 

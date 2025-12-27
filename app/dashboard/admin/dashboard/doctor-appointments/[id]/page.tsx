@@ -428,7 +428,7 @@ export default function DoctorAppointments() {
           </div>
           <div className="flex gap-3">
             <Button
-              onClick={() => router.push("/appointment/admin/dashboard")}
+              onClick={() => router.push("/dashboard/admin/dashboard")}
               variant="outline"
               className="border-teal-300 hover:bg-teal-50"
             >

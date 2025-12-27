@@ -1,8 +1,8 @@
-// app/dashboard/doctors/page.tsx  (or wherever your doctors list route is)
+// app/dashboard/doctors/page.tsx
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useApi, type Doctor } from "@/lib/api";
@@ -22,48 +22,22 @@ export default function DoctorsPage() {
   const api = useApi();
 
   const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [filteredDoctors, setFilteredDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [hasFetched, setHasFetched] = useState(false);
 
   const user = session?.user;
   const authLoading = status === "loading";
 
-  // Redirect if not logged in
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/login");
-    }
-  }, [user, authLoading, router]);
-
-  // Fetch doctors when logged in
-  useEffect(() => {
-    if (user) {
-      fetchDoctors();
-    }
-  }, [user]);
-
-  // Live search filter
-  useEffect(() => {
-    if (searchQuery.trim() === "") {
-      setFilteredDoctors(doctors);
-    } else {
-      const filtered = doctors.filter(
-        (doctor) =>
-          doctor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          doctor.specialization.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredDoctors(filtered);
-    }
-  }, [searchQuery, doctors]);
-
-  const fetchDoctors = async () => {
+  // Optimized fetch function
+  const fetchDoctors = useCallback(async () => {
+    if (hasFetched) return;
+    
     setLoading(true);
     const result = await api.getDoctors();
 
     if (result.data && Array.isArray(result.data)) {
       setDoctors(result.data);
-      setFilteredDoctors(result.data);
     } else {
       console.error("Failed to fetch doctors:", result.error);
       toast({
@@ -73,17 +47,48 @@ export default function DoctorsPage() {
       });
     }
     setLoading(false);
-  };
+    setHasFetched(true);
+  }, [api, toast, hasFetched]);
 
-  const handleViewSlots = (doctorId: number) => {
+  // Memoized filtered doctors
+  const filteredDoctors = useMemo(() => {
+    if (searchQuery.trim() === "") {
+      return doctors;
+    }
+    const query = searchQuery.toLowerCase();
+    return doctors.filter(
+      (doctor) =>
+        doctor.name.toLowerCase().includes(query) ||
+        doctor.specialization.toLowerCase().includes(query)
+    );
+  }, [doctors, searchQuery]);
+
+  // Effect to redirect if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/login");
+    }
+  }, [user, authLoading, router]);
+
+  // Effect to fetch data only when needed
+  useEffect(() => {
+    if (user && !hasFetched) {
+      fetchDoctors();
+    }
+  }, [user, fetchDoctors, hasFetched]);
+
+  const handleViewSlots = useCallback((doctorId: number) => {
     router.push(`/dashboard/doctors/${doctorId}/slots`);
-  };
+  }, [router]);
 
   if (authLoading || loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-96">
-          <Spinner className="w-8 h-8 text-primary" />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Spinner className="w-12 h-12 text-teal-600 mx-auto mb-4" />
+            <p className="text-gray-600">Loading doctors...</p>
+          </div>
         </div>
       </DashboardLayout>
     );
