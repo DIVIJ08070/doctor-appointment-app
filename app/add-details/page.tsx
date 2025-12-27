@@ -61,7 +61,7 @@ export default function AddDetailsPage() {
 
     try {
       // Correct endpoint: /v1/auth instead of /v1/auth/create
-      const res = await fetch(`${backendBase}/v1/auth`, {
+      const res = await fetch(`${backendBase}/v1/auth/create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
