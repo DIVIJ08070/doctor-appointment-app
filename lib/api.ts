@@ -47,9 +47,7 @@ const createApiClient = (jwt?: string, router?: any) => ({
         if (
           res.status === 417 ||
           message.toLowerCase().includes("phone") ||
-          message.toLowerCase().includes("dob") ||
-          message.toLowerCase().includes("details") ||
-          message.toLowerCase().includes("profile")
+          message.toLowerCase().includes("dob") 
         ) {
           if (router) {
             router.push("/add-details");
