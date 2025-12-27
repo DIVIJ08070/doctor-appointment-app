@@ -12,16 +12,15 @@ export default function HomePage() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      // Check if user has completed profile
-      const profileCompleted = localStorage.getItem("profileCompleted");
 
-      if (profileCompleted === "true") {
         router.push("/dashboard");
-      } else {
-        router.push("/add-details");
-      }
-    } else if (status === "unauthenticated") {
+
+    } 
+    else if (status === "unauthenticated")
+      {
+
       router.push("/login");
+      
     }
   }, [status, session, router]);
 

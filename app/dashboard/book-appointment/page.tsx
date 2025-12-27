@@ -1,3 +1,4 @@
+// Complete component with old payment logic
 // app/dashboard/book-appointment/page.tsx
 "use client";
 
@@ -79,17 +80,6 @@ const postFormToUrl = (actionUrl: string, params: Record<string, any>) => {
   setTimeout(() => form.remove(), 1500);
 };
 
-// Generate PayU hash - CORRECTED VERSION based on PayU error message
-const generatePayUHash = async (params: Record<string, string>, salt: string): Promise<string> => {
-  const hashString = `${params.key}|${params.txnid}|${params.amount}|${params.productinfo}|${params.firstname}|${params.email}|${params.udf1 || ''}|${params.udf2 || ''}|${params.udf3 || ''}|${params.udf4 || ''}|${params.udf5 || ''}||||||${salt}`;
-
-  const encoder = new TextEncoder();
-  const data = encoder.encode(hashString);
-  const hashBuffer = await crypto.subtle.digest("SHA-512", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
-};
-
 export default function BookAppointmentPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -125,16 +115,6 @@ export default function BookAppointmentPage() {
 
   // Backend base URL
   const BACKEND_BASE_URL = "https://medify-service-production.up.railway.app";
-
-  // PayU Configuration (Test environment - using your test credentials)
-  const PAYU_CONFIG = {
-    merchantKey: 'gtKFFx', // Test merchant key
-    merchantSalt: '4R38IvwiV57FwVpsgOvTXBdLE4tHUXFW', // Test merchant salt
-    baseUrl: 'https://test.payu.in',
-    paymentEndpoint: '/_payment',
-    successUrl: `${typeof window !== 'undefined' ? window.location.origin : ''}/payu/success`,
-    failureUrl: `${typeof window !== 'undefined' ? window.location.origin : ''}/payu/failure`
-  };
 
   // Load patients and doctors
   const loadData = async () => {
@@ -435,69 +415,114 @@ export default function BookAppointmentPage() {
     }
   };
 
-  // Initiate payment with PayU - This will redirect to PayU payment page
+  // OLD PAYMENT LOGIC - using backend initiateTransaction endpoint
   const handleInitiatePayment = async () => {
-  if (!justBookedAppointment?.id) {
-    setPaymentError("Appointment ID missing");
-    return;
-  }
+    if (!justBookedAppointment || !justBookedAppointment.id) {
+      setPaymentError("Appointment ID unavailable. Please contact support.");
+      return;
+    }
+    setPaymentError(null);
+    setPaymentLoading(true);
 
-  setPaymentError(null);
-  setPaymentLoading(true);
+    try {
+      // Call backend to initiate transaction (old logic)
+      const res = await fetch(`${BACKEND_BASE_URL}/v1/payments/initiateTransaction`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.jwt}`,
+          'appointment_id': justBookedAppointment.id.toString()
+        },
+        body: JSON.stringify({})
+      });
 
-  try {
-    const txnid = `MEDIFY${Date.now()}${Math.floor(Math.random() * 10000)}`;
+      if (!res.ok) {
+        const err = await tryParseJson(res);
+        const msg = (err && err.message) ? err.message : `Payment initiation failed (HTTP ${res.status})`;
+        setPaymentError(msg);
+        setPaymentLoading(false);
+        return;
+      }
 
-    const doctorExperience = selectedDoctor?.experience || 0;
-    let amount = "500.00";
-    if (doctorExperience >= 10) amount = "1500.00";
-    else if (doctorExperience >= 5) amount = "1000.00";
-    else if (doctorExperience >= 2) amount = "750.00";
+      const dto = await res.json();
 
-    const payuPayload = {
-      key: "gtKFFx",
-      txnid: txnid,
-      amount: amount,
-      productinfo: `Appointment with Dr. ${selectedDoctor?.name || 'Doctor'}`,
-      firstname: selectedPatient?.name?.split(' ')[0] || 'Patient',
-      email: user?.email || 'patient@example.com',
-      phone: selectedPatient?.phone || '9999999999',
-      udf1: justBookedAppointment.id.toString(),
-      udf2: '',
-      udf3: '',
-      udf4: '',
-      udf5: '',
-      surl: `${window.location.origin}/payu/success`,
-      furl: `${window.location.origin}/payu/failure`,
-      hash: '',
-    };
+      // Build PayU payload from backend DTO (must include server-generated hash)
+      const payuPayload = {
+        key: dto.key || '',
+        txnid: dto.txnid || '',
+        amount: dto.amount != null ? String(dto.amount) : '',
+        productinfo: dto.productinfo || '',
+        firstname: dto.firstname || '',
+        email: dto.email || '',
+        phone: dto.phone || '',
+        udf1: dto.udf1 ?? '',
+        udf2: dto.udf2 ?? '',
+        udf3: dto.udf3 ?? '',
+        udf4: dto.udf4 ?? '',
+        udf5: dto.udf5 ?? '',
+        hash: dto.hash || '',
+        // success / failure redirect (optional overrides from backend)
+        surl: dto.surl || `${window.location.origin}/payu/success`,
+        furl: dto.furl || `${window.location.origin}/payu/failure`
+      };
 
-    payuPayload.hash = await generatePayUHash(payuPayload, "4R38IvwiV57FwVpsgOvTXBdLE4tHUXFW");
+      // Validate
+      if (!payuPayload.key || !payuPayload.txnid || !payuPayload.amount || !payuPayload.hash) {
+        setPaymentError('Invalid payment response from server. Missing key/txnid/amount/hash.');
+        setPaymentLoading(false);
+        return;
+      }
 
-    postFormToUrl("https://test.payu.in/_payment", payuPayload);
-  } catch (err) {
-    console.error("Payment error:", err);
-    setPaymentError("Failed to start payment. Try again.");
-    setPaymentLoading(false);
-  }
-};
+      // Submit to PayU
+      postFormToUrl("https://test.payu.in/_payment", payuPayload);
+      // navigation will occur; don't set loading false here
+    } catch (err) {
+      console.error('Payment initiation error', err);
+      setPaymentError('Network error while initiating payment. Try again.');
+      setPaymentLoading(false);
+    }
+  };
 
   // Pay later - Mark appointment as confirmed without payment
-  // Pay later - Simply redirect to appointments without API call
-const handlePayLater = async () => {
-  setBookingSuccess(true);
-  setShowTermsModal(false);
-  
-  toast({
-    title: "Appointment Booked! ✅",
-    description: "Your appointment has been scheduled. Please pay at the clinic during your visit.",
-  });
+  const handlePayLater = async () => {
+    if (!justBookedAppointment?.id) {
+      setPaymentError("Appointment ID missing");
+      return;
+    }
 
-  // Redirect to appointments section after a short delay
-  setTimeout(() => {
-    router.push("/dashboard/appointments");
-  }, 1500);
-};
+    try {
+      const res = await fetch(`${BACKEND_BASE_URL}/v1/payments/markAsPaidLater`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.jwt}`,
+          'appointment_id': justBookedAppointment.id.toString()
+        },
+        body: JSON.stringify({})
+      });
+
+      if (res.ok) {
+        setBookingSuccess(true);
+        setShowTermsModal(false);
+        
+        toast({
+          title: "Appointment Booked! ✅",
+          description: "Your appointment has been scheduled. Please pay at the clinic during your visit.",
+        });
+
+        // Redirect to appointments section after a short delay
+        setTimeout(() => {
+          router.push("/dashboard/appointments");
+        }, 1500);
+      } else {
+        const err = await tryParseJson(res);
+        setPaymentError(err?.message || "Failed to mark as paid later");
+      }
+    } catch (err) {
+      console.error("Pay later error:", err);
+      setPaymentError("Failed to process request. Try again.");
+    }
+  };
 
   const formatTime = (time: string) => time?.slice(0, 5) || "—";
 
@@ -557,9 +582,9 @@ const handlePayLater = async () => {
   // Calculate price for display
   const calculatePrice = () => {
     const doctorExperience = selectedDoctor?.experience || 0;
-    if (doctorExperience >= 10) return '1500';
-    if (doctorExperience >= 5) return '1000';
-    if (doctorExperience >= 2) return '750';
+    if (doctorExperience >= 10) return '100';
+    if (doctorExperience >= 5) return '100';
+    if (doctorExperience >= 2) return '100';
     return '500';
   };
 
@@ -778,7 +803,7 @@ const handlePayLater = async () => {
         </Card>
       </div>
 
-      {/* Terms & Payment Modal - Now with actual PayU redirection */}
+      {/* Terms & Payment Modal */}
       {showTermsModal && justBookedAppointment && (
         <AlertDialog open={showTermsModal} onOpenChange={setShowTermsModal}>
           <AlertDialogContent className="max-w-2xl">
