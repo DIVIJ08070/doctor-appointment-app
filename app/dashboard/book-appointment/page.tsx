@@ -489,39 +489,8 @@ export default function BookAppointmentPage() {
       setPaymentError("Appointment ID missing");
       return;
     }
+    router.push("/dashboard/appointments");
 
-    try {
-      const res = await fetch(`${BACKEND_BASE_URL}/v1/payments/markAsPaidLater`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.jwt}`,
-          'appointment_id': justBookedAppointment.id.toString()
-        },
-        body: JSON.stringify({})
-      });
-
-      if (res.ok) {
-        setBookingSuccess(true);
-        setShowTermsModal(false);
-        
-        toast({
-          title: "Appointment Booked! ✅",
-          description: "Your appointment has been scheduled. Please pay at the clinic during your visit.",
-        });
-
-        // Redirect to appointments section after a short delay
-        setTimeout(() => {
-          router.push("/dashboard/appointments");
-        }, 1500);
-      } else {
-        const err = await tryParseJson(res);
-        setPaymentError(err?.message || "Failed to mark as paid later");
-      }
-    } catch (err) {
-      console.error("Pay later error:", err);
-      setPaymentError("Failed to process request. Try again.");
-    }
   };
 
   const formatTime = (time: string) => time?.slice(0, 5) || "—";
